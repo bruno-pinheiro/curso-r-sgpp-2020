@@ -1,0 +1,226 @@
+---
+title: "Caso: Análise da distribuição de equipamentos culturais na cidade de São Paulo"
+output:
+  html_notebook:
+    toc: true
+    toc_float: true
+    df_print: data.frame
+---
+
+## Introdução
+
+Este notebook é uma demonstração inicial de possibilidades de uso do R, para do aula do dia 1 no Minicurso de Análise de dados governamnetais com o R, parte da Semana de Gestão de Políticas Públicas 2020 da USP.
+
+Aqui será realizada uma análise da distribuição dos equipamentos culturais na cidade de São Paulo.
+
+Para isso serão usados dados do IBGE (dados espaciais de distritos) e do Portal de Dados Abertos da Prefeitura de São Paulo (equipamentos de cultura).
+
+
+```{r setup}
+library(dplyr)
+library(sf)
+library(tidyr)
+library(purrr)
+```
+
+## Baixar os dados
+
+### Cultura
+
+```{r}
+url_cultura <- "http://geosampa.prefeitura.sp.gov.br/PaginasPublicas/downloadArquivoOL.aspx?orig=DownloadCamadas&arq=03_Equipamentos%5C%5CCultura%5C%5CShapefile%5C%5CEQUIPAMENTOS_SHP_TEMA_CULTURA&arqTipo=Shapefile"
+```
+
+```{r}
+if (!file.exists("../dados/cultura-raw")){
+  dir.create("../dados/cultura-raw")
+  download.file(url_cultura, destfile = "../dados/cultura-raw/cultura-geosampa.zip")
+  unzip("../dados/cultura-raw/cultura-geosampa.zip",
+        junkpaths = TRUE, exdir = "../dados/cultura-raw")
+}
+```
+
+### Distritos
+
+```{r}
+url_ibge <- "ftp://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_de_setores_censitarios__divisoes_intramunicipais/censo_2010/setores_censitarios_shp/sp/sp_distritos.zip"
+
+if (!file.exists("../dados/distritos-raw")){
+  dir.create("dados/distritos-raw")
+  download.file(url_ibge, destfile = "../dados/distritos-raw/sp_distritos.zip")
+  unzip("../dados/distritos-raw/sp_distritos.zip",
+        junkpaths = TRUE, exdir = "../dados/distritos-raw")
+}
+```
+
+
+## Importar os dados
+
+
+### Cultura
+
+```{r}
+equipamentos_cultura <- c("bibliotecas", "espacos_culturais", "museus", "outros", "teatro_cinema")
+arquivos <- list.files("../dados/cultura-raw")
+shapes_cultura <- arquivos[grepl(".*SIRGAS.*CULTURA.*shp", arquivos)]
+
+cultura <- map2(
+  shapes_cultura, equipamentos_cultura,
+  ~read_sf(paste0("../dados/cultura-raw/", .x), options = "ENCODING=windows-1252") %>% 
+    mutate(tipo = .y) %>% 
+    select(everything(), geometry)
+  ) %>% 
+  do.call(rbind, .)
+```
+
+### Distritos
+
+```{r}
+distritos <- read_sf("../dados/distritos-raw/35DSE250GC_SIR.shp", options = "ENCODING=windows-1252")
+```
+
+## Preparação dos dados
+
+### Distritos
+
+```{r}
+distritos <- distritos %>%
+  st_transform(31983) %>% 
+  rename(cod_distrito = CD_GEOCODD, nome_distrito = NM_DISTRIT) %>% 
+  filter(grepl(3550308, cod_distrito)) %>% 
+  mutate(area_distrito = as.numeric(st_area(geometry)) / 10^6) %>% 
+  select(cod_distrito, nome_distrito, area_distrito)
+```
+
+### Mesclar dados
+
+```{r}
+cultura <- cultura %>% 
+  st_set_crs(31983) %>% 
+  st_join(distritos, join = st_intersects) %>% 
+  as_tibble() %>% 
+  count(cod_distrito, tipo) %>%
+  spread(tipo, n) %>% 
+  mutate_all(~replace_na(., 0)) %>%
+  mutate(cod_distrito = as.character(cod_distrito)) %>% 
+  rbind(data.frame(cod_distrito = distritos$cod_distrito[!(distritos$cod_distrito %in% .$cod_distrito)],
+                   bibliotecas = rep(0, 5),
+                   espacos_culturais = rep(0, 5),
+                   museus = rep(0, 5),
+                   outros = rep(0, 5),
+                   teatro_cinema = rep(0, 5)))
+
+cultura <- cultura %>% 
+  mutate(equipamentos = bibliotecas + teatro_cinema + outros + espacos_culturais + museus) %>% 
+  merge(select(distritos, cod_distrito, nome_distrito), by = "cod_distrito")
+
+cultura <- st_as_sf(cultura)
+```
+
+## Dados preparados
+
+```{r}
+head(data.frame(cultura))
+```
+
+## Análise exploratória
+
+### Sumário estatístico
+
+```{r}
+boxplot(seq(1, 100, 1))
+```
+```{r}
+head(data.frame(cultura))
+```
+
+
+```{r}
+summary(cultura)
+```
+
+### Contar todos os equipamentos
+
+#### Quantos equipamentos culturais há na cidade?
+
+__Total__
+
+```{r}
+sum(cultura$equipamentos)
+```
+__Por tipo__
+
+```{r}
+sum(cultura$bibliotecas)
+sum(cultura$museus)
+sum(cultura$teatro_cinema)
+sum(cultura$espacos_culturais)
+sum(cultura$outros)
+```
+```{r}
+sapply(data.frame(cultura)[, 2:7], sum)
+```
+
+__Gráfico de barras__
+
+```{r}
+equip_total <- sapply(data.frame(cultura)[, 2:6], sum)
+barplot(sort(equip_total, decreasing = TRUE))
+```
+
+#### Como os equipamentos estão distribuídos pela cidade?
+
+__Bibliotecas__
+
+```{r, fig.width=9}
+barplot(table(cultura$bibliotecas))
+```
+
+__Gráfico de barras (barplot)__
+
+```{r}
+# converter para factor
+bibs <- factor(cultura$bibliotecas, levels = seq(0, 13, 1))
+bibs_total <- table(bibs)
+barplot(bibs_total,
+        main = "Distribuição de bibliotecas por distrito")
+```
+
+```{r}
+# comparar as contagens
+table(cultura$bibliotecas)
+table(bibs)
+```
+
+__Museus__
+
+```{r}
+# converter para factor
+bibs <- factor(cultura$museus, levels = seq(0, 20, 1))
+bibs_total <- table(bibs)
+barplot(bibs_total,
+        main = "Distribuição de museus por distrito")
+```
+
+## Mapas
+
+```{r}
+cultura %>%
+  data.frame %>% 
+  group_by(nome_distrito) %>% 
+  summarise(total_equipamentos = sum(equipamentos)) %>% 
+  ungroup() %>% 
+  arrange(-total_equipamentos)
+```
+
+```{r}
+plot(cultura[, "bibliotecas"])
+```
+
+
+```{r}
+for (equip in equipamentos_cultura){
+  plot(cultura[, equip])
+}
+```
+

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Análise de dados governamentais com o R</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Bruno Pinheiro de Oliveira" />
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Análise de dados governamentais com o R
+### Bruno Pinheiro de Oliveira
+### Semana de Gestão de Políticas Públicas (EACH/USP)
+### Outubro/2020 - Dia 1
+
+---
+
+
+
+
+
+
+
+# 1. Introdução
+
+&lt;img src="img/data-loading.jpg" style="display: block; margin: auto;" /&gt;
+
+
+---
+## Quem sou eu
+
+#### Bruno Pinheiro de Oliveira
+
+Pai do Iriê.
+
+Sou cientista de dados na unidade de produtos financeiros da Stone, onde trabalho com modelagem de crédito.
+
+Adoro fuçar sobre o mundo numa boa base de dados (e às vezes penar para construir uma).
+
+
+Ah! Estudo Gestão de Políticas Públicas na EACH/USP.
+
+
+---
+## A atividade
+
+.pull-left[
+### Dia 1
+
+- Contexto
+- Conhecendo o R
+- Interface do R
+- Caso: Análise de dados culturais
+- Tipos e estruturas de dados
+    + Tipos de dados
+    + Estruturas de dados no R
+    + Formatos
+- Operações básicas
+- Análises Univariadas
+- Criando um mapa
+]
+
+.pull-right[
+
+### Dia 2
+
+Manipulação de dados com `dplyr` e `sf`. Gráficos com `ggplot`. Mapas. Caso - continuação da análise de dados culturais
+
+### Dia 3
+
+Encontrando padrões: árvores de decisão, clusterização. Caso - distribuição dos votos em São Paulo.
+
+### Dia 4
+Encontrando padrões 2: Caso - distribuição de equipamentos culturais e eleições
+]
+
+---
+class: inverse, middle, center
+
+## Contexto
+
+---
+## O papel do uso de dados na gestão pública
+
+- Controle social e combate à corrupção &lt;svg style="height:0.8em;top:.04em;position:relative;fill:#F97B64;" viewBox="0 0 512 512"&gt;&lt;path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/&gt;&lt;/svg&gt;
+
+- Maior confiança nas instituições &lt;svg style="height:0.8em;top:.04em;position:relative;fill:#F97B64;" viewBox="0 0 512 512"&gt;&lt;path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/&gt;&lt;/svg&gt;
+
+- Democracia &lt;svg style="height:0.8em;top:.04em;position:relative;fill:#F97B64;" viewBox="0 0 512 512"&gt;&lt;path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/&gt;&lt;/svg&gt;
+
+- Gestão mais eficiente &lt;svg style="height:0.8em;top:.04em;position:relative;fill:#F97B64;" viewBox="0 0 512 512"&gt;&lt;path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/&gt;&lt;/svg&gt;
+
+- Inovação em serviços &lt;svg style="height:0.8em;top:.04em;position:relative;fill:#F97B64;" viewBox="0 0 512 512"&gt;&lt;path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/&gt;&lt;/svg&gt;
+
+&gt; #### "Não se trata mais apenas de disponibilizar as informações, mas de fazê-lo com objetivo de ampliar seu uso e de obter novas aplicações para além da simples prestação  de contas".
+&gt; Matheus, R; Vaz, J. C; Ribeiro, M (2013)
+
+---
+class: inverse, center, middle
+
+&lt;svg style="height:80px;fill:#FFFFFF;" viewBox="0 0 512 512"&gt;&lt;path d="M256 8C119.043 8 8 119.083 8 256c0 136.997 111.043 248 248 248s248-111.003 248-248C504 119.083 392.957 8 256 8zm0 110c23.196 0 42 18.804 42 42s-18.804 42-42 42-42-18.804-42-42 18.804-42 42-42zm56 254c0 6.627-5.373 12-12 12h-88c-6.627 0-12-5.373-12-12v-24c0-6.627 5.373-12 12-12h12v-64h-12c-6.627 0-12-5.373-12-12v-24c0-6.627 5.373-12 12-12h64c6.627 0 12 5.373 12 12v100h12c6.627 0 12 5.373 12 12v24z"/&gt;&lt;/svg&gt;
+
+#### O ESTADO É UM GRANDO ACUMULADOR DE DADOS COM OBRIGAÇÃO DE FORNECÊ-LAS (E USÁ-LAS?)
+
+---
+## Bases legais
+
+#### __Lei 12.527, de 18 de novembro de 2011__
+
+É conhecida como LAI - Lei de Acesso à Informação e regula os aspectos relativos no art. 5º da Constituição Federal. Estabelece a transparência como regra e o sigilo como exceção.
+
+#### Transparência ativa
+
+Acontece quando o poder público disponibiliza seus dados e informações de forma proativa.
+
+#### Transparência passiva
+
+Quando os dados não estão disponibilizados, os cidadãos podem requisitá-los ao poder público realizando pedidos de acesso à informação
+
+---
+## O que é ciência de dados
+
+.pull-left[
+* Resolução de problemas complexos a partir de dados
+* Criação de produtos a partir de dados
+* Big data, machine learning, inteligência artificial...
+* ...
+
+Ciência de dados é um campo interdisciplinar que visa __descobrir o que fazer com a galáxia de dados que existe e é produzida atualmente__, mirando desenvolver produtos de dados que respondam a demandas relacionadas à resolução de problemas.
+
+* Problema nº 1: os dados (como obter, como armazenar, como acessar, como manter, como usar)
+]
+
+.pull-right[
+&lt;img src="img/data-science-diagram.svg" width="500px" style="display: block; margin: auto;" /&gt;
+]
+
+---
+## Data science pipeline na gestão pública
+
+&lt;img src="img/gov-data-science-pipeline.png" width="600px" style="display: block; margin: auto;" /&gt;
+
+---
+class: center, middle, inverse
+
+# Casos de uso de dados governamentais
+
+---
+## Operação Serenata de Amor
+
+.pull-left[
+&lt;img src="img/logo-serenata-de-amor.png" width="300px" style="display: block; margin: auto;" /&gt;
+
+__Realização__: Operação Serenata de Amor 
+
+__Dados usados__: [Cota para Exercício da Atividade Parlamentar](https://dadosabertos.camara.leg.br/swagger/api.html#staticfile)
+]
+
+.pull-right[
+A [Operação Serenata de Amor](https://serenata.ai) é um projeto aberto que usa ciência de dados com a finalidade de fiscalizar gastos públicos e compartilhar as informações de forma acessível a qualquer pessoa.
+
+A Serenata criou a [Rosie](https://twitter.com/rosiedaserenata), uma inteligência artificial capaz de analisar os gastos reembolsados pela Cota para Exercício da Atividade Parlamentar (CEAP), de deputados federais e senadores, feitos em exercício de sua função, identificando suspeitas e incentivando a população a questioná-los.
+]
+
+---
+## Cuidando do meu bairro
+
+.pull-left[
+&lt;img src="img/logo-cuidando.jpg" width="225px" style="display: block; margin: auto;" /&gt;
+
+__Realização__: Co:laboratório de Desenvolvimento e Participação (COLAB) e parceiros
+
+__Dados usados__: Secretaria da Fazenda - Execução Orçamentária, E-Negócios CidadeSP - Licitações e Contratos, ComprasNet - ata do pregão e outros
+]
+
+.pull-right[
+Mapeia o orçamento público do município de São Paulo em tempo real. As despesas são georreferenciadas e classificadas conforme a etapa de execução (planejamento, empenho e liquidação).
+
+Cada ponto no mapa contem informações sobre a despesa, que facilitam o controle das ações do poder público pela população. Além disso, é integrado ao e-SIC da Prefeitura. As perguntas que os cidadãos fazem na plataforma para os órgãos responsáveis pelas despesas são efetivados como pedidos de acesso à informação.
+]
+
+---
+## Aqui tem remédio
+
+.pull-left[
+&lt;img src="img/logo-aqui-tem-remedio.png" width="300px" style="display: block; margin: auto;" /&gt;
+
+
+__Realização__: Secretaria de Saúde - Prefeitura de São Paulo
+
+__Dados usados__: Cadastro de medicamentos
+]
+
+.pull-right[
+O Aqui tem Remédio é uma aplicação web e mobile que permite realizar busca georreferenciada sobre a existência de medicamentos fornecidos pelo SUS nas unidades públicas de saúde da cidade. É possível pesquisar pela medicação desejada e o sistema indica em quais unidades próximas do seu endereço é possível encontrá-la no momento.
+
+Além da população, também é usado pelos profissionais das farmácias das unidades de saúde para orientar a população sobre onde o medicamento está disponível.
+]
+
+---
+## Painel Covid
+
+.pull-left[
+&lt;img src="img/painel-covid.png" width="500px" style="display: block; margin: auto;" /&gt;
+
+__Realização__: Ministério da Saúde - Brasil
+
+__Dados usados__: Registros de casos e mortes por Covid 19
+]
+
+.pull-right[
+É um dashboard com informações sobre casos de Covid 19 no Brasil.
+
+Apresenta histórico de casos confirmados, óbitos e cruzamentos com casos de síndrome respiratória gráve.
+
+Foi objeto de muita disputa.
+]
+
+---
+class: center, middle, inverse
+
+# Caso prático
+
+
+---
+class: center, middle, inverse
+
+## Tipos de dados
+
+---
+## Tipos de dados
+
+&lt;img src="img/tipos-variaveis.png" width="647" style="display: block; margin: auto;" /&gt;
+
+---
+## Estruturas de dados no R
+
+
+Table: Estruturas de dados no R
+
+|Dimensoes |Um formato |Vários formatos |
+|:---------|:----------|:---------------|
+|1d        |Vetor      |Lista           |
+|2d        |Matrix     |Data frame      |
+|nd        |Array      |                |
+
+---
+## Vetores
+
+Esrtutura mais básica, feita para armazenar dados unidimensionais.
+
+.pull-left[
+
+```r
+a &lt;- c(500, 1200, 850, 3000, 1000, 900, 2500, 750, 400)
+print(a)
+```
+
+```
+[1]  500 1200  850 3000 1000  900 2500  750  400
+```
+
+
+```r
+class(a)
+```
+
+```
+[1] "numeric"
+```
+
+
+```r
+mean(a)
+```
+
+```
+[1] 1233.333
+```
+]
+
+.pull-right[
+
+```r
+b &lt;- c("@", "$", "$", "@", "$", "@", "@", "@", "$")
+print(b)
+```
+
+```
+[1] "@" "$" "$" "@" "$" "@" "@" "@" "$"
+```
+
+
+```r
+class(b)
+```
+
+```
+[1] "character"
+```
+
+
+```r
+table(b)
+```
+
+```
+b
+@ $ 
+5 4 
+```
+
+]
+
+---
+## Data frames
+
+Dataframes são as estruturas de dados mais importantes do R. São como as planilhas de arquivos Excel:
+
+
+```r
+data.frame(colA = a, colB = b)
+```
+
+```
+  colA colB
+1  500    @
+2 1200    $
+3  850    $
+4 3000    @
+5 1000    $
+6  900    @
+7 2500    @
+8  750    @
+9  400    $
+```
+
+---
+class: center, middle, inverse
+
+# 3. Conhecendo o R
+
+---
+class: center, middle, inverse
+
+# Muito obrigado!
+
+Por hoje, é só. Até amanhã.
+
+
+Bruno Pinheiro de Oliveira
+
+&lt;svg style="height:20px;fill:#FFFFFF;" viewBox="0 0 512 512"&gt;&lt;path d="M459.37 151.716c.325 4.548.325 9.097.325 13.645 0 138.72-105.583 298.558-298.558 298.558-59.452 0-114.68-17.219-161.137-47.106 8.447.974 16.568 1.299 25.34 1.299 49.055 0 94.213-16.568 130.274-44.832-46.132-.975-84.792-31.188-98.112-72.772 6.498.974 12.995 1.624 19.818 1.624 9.421 0 18.843-1.3 27.614-3.573-48.081-9.747-84.143-51.98-84.143-102.985v-1.299c13.969 7.797 30.214 12.67 47.431 13.319-28.264-18.843-46.781-51.005-46.781-87.391 0-19.492 5.197-37.36 14.294-52.954 51.655 63.675 129.3 105.258 216.365 109.807-1.624-7.797-2.599-15.918-2.599-24.04 0-57.828 46.782-104.934 104.934-104.934 30.213 0 57.502 12.67 76.67 33.137 23.715-4.548 46.456-13.32 66.599-25.34-7.798 24.366-24.366 44.833-46.132 57.827 21.117-2.273 41.584-8.122 60.426-16.243-14.292 20.791-32.161 39.308-52.628 54.253z"/&gt;&lt;/svg&gt; @lahunmen
+&lt;svg style="height:20px;fill:#FFFFFF;" viewBox="0 0 496 512"&gt;&lt;path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/&gt;&lt;/svg&gt; github.com/alemdamedia
+&lt;svg style="height:20px;fill:#FFFFFF;" viewBox="0 0 448 512"&gt;&lt;path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z"/&gt;&lt;/svg&gt; linkedin.com/in/brunopinheirooliveira
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "solarized-dark",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

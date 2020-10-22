@@ -96,7 +96,7 @@ estão os materiais que usamos em cada dia do curso.
 
 Especialmente, tente reproduzir, modificar e explorar os cases.
 
-## 6. Faça os desafios
+## 6. Faça os desafios (Faltando)
 
 O diretório `/desafios` contem notebooks com algumas sugestões de atividades para te
 ajudar nos estudos e experimentação do R

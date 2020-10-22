@@ -1,80 +1,25 @@
 ---
 title: "Caso: Análise da distribuição de equipamentos culturais na cidade de São Paulo"
-output:
-  html_document:
-    toc: true
-    toc_float: true
-    df_print: paged
+output: html_document
+    
 ---
 
 ```{r setup}
+knitr::opts_chunk$set(comment = "")
+```
+
+
+```{r libs}
 library(dplyr)
 library(sf)
 library(tidyr)
-library(purrr)
 library(ggplot2)
 ```
 
 ## Importar os dados
 
-### Cultura
-
 ```{r}
-equipamentos_cultura <- c("bibliotecas", "espacos_culturais", "museus", "outros", "teatro_cinema")
-arquivos <- list.files("../dados/cultura-raw")
-shapes_cultura <- arquivos[grepl(".*SIRGAS.*CULTURA.*shp", arquivos)]
-
-cultura <- map2(
-  shapes_cultura, equipamentos_cultura,
-  ~read_sf(paste0("../dados/cultura-raw/", .x), options = "ENCODING=windows-1252") %>% 
-    mutate(tipo = .y) %>% 
-    select(everything(), geometry)
-  ) %>% 
-  do.call(rbind, .)
-```
-
-### Distritos
-
-```{r}
-distritos <- read_sf("../dados/distritos-raw/35DSE250GC_SIR.shp", options = "ENCODING=windows-1252")
-```
-
-## Preparação dos dados
-
-### Distritos
-
-```{r}
-distritos <- distritos %>%
-  st_transform(31983) %>% 
-  rename(cod_distrito = CD_GEOCODD, nome_distrito = NM_DISTRIT) %>% 
-  filter(grepl(3550308, cod_distrito)) %>% 
-  mutate(area_distrito = as.numeric(st_area(geometry)) / 10^6) %>% 
-  select(cod_distrito, nome_distrito, area_distrito)
-```
-
-### Mesclar dados
-
-```{r}
-cultura <- cultura %>% 
-  st_set_crs(31983) %>% 
-  st_join(distritos, join = st_intersects) %>% 
-  as_tibble() %>% 
-  count(cod_distrito, tipo) %>%
-  spread(tipo, n) %>% 
-  mutate_all(~replace_na(., 0)) %>%
-  mutate(cod_distrito = as.character(cod_distrito)) %>% 
-  rbind(data.frame(cod_distrito = distritos$cod_distrito[!(distritos$cod_distrito %in% .$cod_distrito)],
-                   bibliotecas = rep(0, 5),
-                   espacos_culturais = rep(0, 5),
-                   museus = rep(0, 5),
-                   outros = rep(0, 5),
-                   teatro_cinema = rep(0, 5)))
-
-cultura <- cultura %>% 
-  mutate(equipamentos = bibliotecas + teatro_cinema + outros + espacos_culturais + museus) %>% 
-  merge(select(distritos, cod_distrito, nome_distrito), by = "cod_distrito")
-
-cultura <- st_as_sf(cultura)
+cultura <- read_sf("../dados/preparados/distritos_cultura.shp")
 ```
 
 ## Dados preparados
@@ -88,17 +33,19 @@ head(data.frame(cultura))
 ### Sumário estatístico
 
 ```{r}
-equipamentos <- cultura %>% 
-  data.frame() %>% 
+sumario <- cultura %>% 
+  data.frame %>% 
   select_if(is.numeric) %>% 
   pivot_longer(cols=everything())
+
+sumario
 ```
 
 
 ```{r}
-sumario <- equipamentos  %>%
+sumario <- sumario  %>%
   group_by(name) %>% 
-  summarise_all(funs(sum, min, mean, median, max, IQR, sd))
+  summarise_at(vars(value), funs(sum, min, mean, median, max, IQR, sd))
 
 sumario
 ```
@@ -106,17 +53,24 @@ sumario
 ### Quantidades por tipo de equipamento
 
 ```{r}
+library(ggplot2)
+cols_eqpmnts <- c("bibltcs", "museus", "ttr_cnm", "espcs_c", "outros")
+
 sumario %>% 
-  filter(name != "equipamentos") %>% 
+  filter(name %in% cols_eqpmnts) %>% 
   ggplot(aes(x=reorder(name, -sum), y=sum)) +
-  geom_bar(stat='identity')
+  geom_bar(stat='identity') +
+  theme_minimal()
 ```
 
 ### Qual a distribuição de cada equipamento pela cidade?
 
 ```{r, fig.width=9}
-equipamentos %>%
-  mutate_at(vars(-name), ~factor(. , levels = seq(0, max(.)))) %>% 
+cultura %>%
+  data.frame %>% 
+  select(cols_eqpmnts) %>% 
+  pivot_longer(cols=everything()) %>% 
+  mutate_at(vars(-name), ~factor(. , levels = seq(0, max(.), 1))) %>% 
   count(name, value) %>% 
   ggplot(aes(x=value, y=n)) +
   geom_bar(stat="identity") +
@@ -125,19 +79,12 @@ equipamentos %>%
 
 ### Distribuição territorial dos equipamentos
 
-```{r}
-equips_distritos <- cultura %>%
-  group_by(nome_distrito) %>% 
-  summarise_if(is.numeric, funs(sum))
-
-equips_distritos
-```
-
 ```{r, fig.width=10, fig.height=10}
-equips_distritos %>% 
+cultura %>% 
+  select(cols_eqpmnts, nm_dstr) %>% 
   mutate_if(is.numeric, ~ntile(., 3)) %>%
   mutate_if(is.numeric, ~factor(., labels = c("Pouco", "Médio", "Muito"))) %>%  
-  pivot_longer(cols=c(2:6)) %>% 
+  pivot_longer(cols=cols_eqpmnts) %>% 
   st_as_sf() %>% 
   ggplot(aes(fill=value)) +
   geom_sf() +
@@ -151,31 +98,19 @@ equips_distritos %>%
 ### Distribuição da população
 
 ```{r}
-censo <- read.csv("../dados/censo.csv") %>% 
-  mutate(habitantes = indigenas + pretos + pardos + brancos + amarelos,
-         renda_media_dom = renda_domicilios / domicilios,
-         renda_pc = renda_domicilios / habitantes)
-
-cultura <- cultura %>% 
-  merge(censo, by = "cod_distrito")
-
-glimpse(cultura)
-```
-
-```{r}
-ggplot(cultura, aes(x=habitantes / 1000)) + 
+ggplot(cultura, aes(x=pessoas / 1000)) + 
   geom_histogram(bins = 15)
 ```
 
 ```{r, fig.height=9, fig.width=9}
 cultura <- cultura %>% 
-  mutate(habitantes_group = cut(habitantes / 1000, breaks = c(-Inf, 50, 100, 150, 250, Inf)))
+  mutate(pessoas_group = cut(pessoas / 1000, breaks = c(-Inf, 50, 100, 150, 250, Inf)))
 
-gPop <- ggplot(cultura, aes(fill=habitantes_group)) +
+gPop <- ggplot(cultura, aes(fill=pessoas_group)) +
   geom_sf(color="black", lwd=0.3) +
   scale_fill_brewer(palette="Reds", "Quantidade") +
   theme_minimal() +
-  labs(title = "Distibuição da População na cidade de São Paulo")
+  labs(title = "Distibuição da População em São Paulo")
 gPop
 ```
 
@@ -184,25 +119,25 @@ gPop
 ```{r}
 cultura %>% 
   data.frame %>% 
-  select(renda_pc) %>% 
+  select(rend_pc) %>% 
   summarise_all(funs(min, mean, median, max, sd, IQR))
 ```
 
 
 ```{r}
-ggplot(cultura, aes(x=renda_pc / 1000)) + 
+ggplot(cultura, aes(x=rend_pc / 1000)) + 
   geom_histogram(bins = 15)
 ```
 
 ```{r, fig.height=9, fig.width=9}
 cultura <- cultura %>% 
-  mutate(renda_pc_group = cut(renda_pc/1000, breaks = c(-Inf, 0.5, 1, 1.5, 2, 3.5, Inf)))
+  mutate(rend_pc_group = cut(rend_pc/1000, breaks = c(-Inf, 0.5, 1, 1.5, 2, 3.5, Inf)))
 
-gRenda <- ggplot(cultura, aes(fill=renda_pc_group)) +
+gRenda <- ggplot(cultura, aes(fill=rend_pc_group)) +
   geom_sf(color="black", lwd=0.3) +
   scale_fill_brewer(palette="YlGnBu", "Quantidade") +
   theme_minimal() +
-  labs(title = "Distibuição da Renda Per Capita na cidade de São Paulo")
+  labs(title = "Distibuição da Renda Per Capita em São Paulo")
 gRenda
 ```
 
@@ -219,21 +154,21 @@ grid.arrange(gPop, gRenda, ncol=2)
 ```{r, fig.width=10, fig.height=4}
 gEquipPop <- cultura %>% 
   data.frame %>% 
-  group_by(equipamentos) %>% 
-  summarise_at(vars(habitantes), funs(mean, median, sd, IQR)) %>%
-  ggplot(aes(x=equipamentos, y=median)) +
+  group_by(eqpmnts) %>% 
+  summarise(median = median(pessoas)) %>% 
+  ggplot(aes(x=eqpmnts, y=median)) +
   geom_point(size=3) +
-  scale_color_viridis_d("Habitantes (mil)") +
+  scale_color_viridis_d("pessoas (mil)") +
   labs(title = "População vs equipamentos culturais") +
   theme_minimal()
 
 gEquipRenda <- cultura %>% 
   data.frame %>% 
-  group_by(equipamentos) %>% 
-  summarise(median = median(renda_pc)) %>%
-  ggplot(aes(x=equipamentos, y=median)) +
+  group_by(eqpmnts) %>% 
+  summarise(median = median(rend_pc)) %>%
+  ggplot(aes(x=eqpmnts, y=median)) +
   geom_point(size=3) +
-  scale_color_viridis_d("Habitantes (mil)") +
+  scale_color_viridis_d("pessoas (mil)") +
   labs(title = "Renda vs equipamentos culturais") +
   theme_minimal()
 
@@ -243,40 +178,35 @@ grid.arrange(gEquipPop, gEquipRenda, ncol=2)
 ```{r}
 cultura %>% 
   data.frame %>% 
-  group_by(equipamentos, habitantes_group) %>% 
-  summarise_at(vars(renda_pc), funs(mean, median, sd, IQR)) %>%
-  ggplot(aes(x=equipamentos, y=median, color=habitantes_group)) +
+  group_by(eqpmnts, pessoas_group) %>% 
+  summarise(median = median(rend_pc)) %>% 
+  ggplot(aes(x=eqpmnts, y=median, color=pessoas_group)) +
   geom_point(size=3) +
-  scale_color_viridis_d("Habitantes (mil)") +
+  scale_color_viridis_d("pessoas (mil)") +
   labs(title = "População vs equipamentos culturais") +
   theme_minimal()
 ```
-## Equipamentos por 10000 habitantes
+
+## Equipamentos por 10000 pessoas
 
 ```{r}
 cultura <- cultura %>% 
-  mutate(equipamentos_pc = (equipamentos / habitantes) * 10000,
-         equipamentos_pc_group = cut(equipamentos_pc, breaks = c(-Inf, 0.2, 0.5, 1, 3, 10, Inf)))
+  mutate(eqpmnts_pc = (eqpmnts / pessoas) * 10000,
+         eqpmnts_pc_group = cut(eqpmnts_pc, breaks = c(-Inf, 0.2, 0.5, 1, 3, 10, Inf)))
 ```
 
 ```{r}
-summary(cultura$equipamentos_pc)
+summary(cultura$eqpmnts_pc)
 ```
 
 ```{r}
-ggplot(cultura, aes(x=equipamentos_pc)) +
+ggplot(cultura, aes(x=eqpmnts_pc)) +
   geom_boxplot()
 ```
-
-###
-
-```{r}
-cor(data.frame(cultura) %>% select_if(is.numeric))[, "renda_pc"]
+```{r, fig.height=8}
+ggplot(cultura, aes(fill=eqpmnts_pc_group)) +
+  geom_sf(color="black", lwd=0.3) +
+  scale_fill_brewer(palette="YlGnBu", "Equipamentos Per Capita") +
+  theme_minimal() +
+  labs(title = "Distibuição da Equipamentos culturais Per Capita em São Paulo")
 ```
-
-
-```{r}
-regLiner <- lm(equipamentos ~ renda_pc + equipamentos_pc, cultura)
-summary(regLiner)
-```
-

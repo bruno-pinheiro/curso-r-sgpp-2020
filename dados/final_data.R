@@ -1,10 +1,12 @@
+print('Iniciando processo final')
+
 library(sf)
 library(dplyr)
 
 censo <- read.csv("dados/censo.csv")
 cultura <- read.csv("dados/cultura.csv")
 distritos <- read.csv("dados/distritos.csv")
-distritos_geo <- read_sf("dados/distritos_geo.shp")
+distritos_geo <- read_sf("dados/distritos_geo/distritos_geo.shp")
 
 censo <- censo %>% 
   mutate(pessoas = brancos + pretos + pardos + amarelos + indigenas,
@@ -24,5 +26,9 @@ distritos_geo <- distritos_geo %>%
 
 glimpse(distritos_geo)
 
-write_sf(distritos_geo, "dados/distritos_cultura.shp")
+
+if (!file.exists("dados/preparados/")){
+  dir.create("dados/preparados/")
+}
+write_sf(distritos_geo, "dados/preparados/distritos_cultura.shp")
 

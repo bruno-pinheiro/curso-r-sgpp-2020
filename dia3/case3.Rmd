@@ -8,8 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
-                      fig.pos = "H")
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Um breve introdução sobre árvores de decisão
@@ -61,6 +60,10 @@ df <- read_sf('../dados/preparados/distritos_cultura.shp')
 ## Preparar dados para árvore
 
 ```{r}
+1000/0
+```
+
+```{r}
 df <- df %>% 
   mutate(negros = pretos + pardos,
          brancos1000 = brancos/1000,
@@ -74,7 +77,20 @@ df <- df %>%
          )
 ```
 
+```{r}
+df %>% names
+```
+
 ## Explorando os dados
+
+```{r}
+table(df$y1)
+prop.table(table(df$y1))
+```
+
+```{r}
+mean(df$eqpmnts)
+```
 
 ```{r}
 df %>%
@@ -86,15 +102,16 @@ df %>%
   pivot_longer(cols=-c(y1)) %>%
   pivot_wider(names_from = y1)
 ```
+
 ```{r}
 df %>%
   data.frame %>%
-  select(contains("1000"), rnd_dm_, y2) %>% 
-  group_by(y2) %>%
+  select(contains("1000"), rnd_dm_, bibltcs, y3) %>% 
+  group_by(y3) %>%
   summarise_all(funs(mean)) %>% 
-  mutate_at(vars(-y2, -rnd_dm_, -pessoas1000), ~(. / sum(.))) %>% 
-  pivot_longer(cols=-c(y2)) %>%
-  pivot_wider(names_from = y2)
+  mutate_at(vars(-y3, -rnd_dm_, -pessoas1000, -bibltcs), ~(. / sum(.))) %>% 
+  pivot_longer(cols=-c(y3)) %>%
+  pivot_wider(names_from = y3)
 ```
 
 ```{r}
@@ -129,10 +146,17 @@ prop.table(freqs)
 ```
 
 
+y = y1 (distritos tem ou não mais equipamentos que a média)
+X = negros1000
+
+
 ```{r}
 library(rpart)
+library(rpart.plot)
+
 fit <- rpart(y1 ~ negros1000, data=df,
              method="class", control = rpart.control(maxdepth=3, cp=-1))
+
 rpart.plot(fit)
 ```
 
@@ -145,9 +169,20 @@ Cada nó apresenta:
 - O percentual de observações que caíram no nó
 
 ```{r}
-df$y1pred <- predict(fit, df %>% select(negros1000), type="class")
+df %>% select(negros1000)
 ```
 
+
+```{r}
+df$y1pred <- predict(fit, df %>% select(negros1000), type="class")
+df$y1pred
+```
+
+```{r}
+df %>%
+  data.frame %>% 
+  count(y1, y1pred)
+```
 
 
 ### Árvore 2 - Buscando padrões
@@ -169,6 +204,7 @@ prop.table(freqs)
 ```
 
 
+
 ```{r}
 library(rpart)
 fit <- rpart(y3 ~ rnd_dm_ + negros1000, data=df,
@@ -179,4 +215,14 @@ rpart.plot(fit)
 ```{r}
 df$y3pred <- predict(fit, df %>% select(rnd_dm_, negros1000), type="class")
 ```
+
+
+```{r}
+table(df$y3, df$y3pred)
+```
+
+```{r}
+prop.table(table(df$y3, df$y3pred))
+```
+
 

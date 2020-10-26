@@ -61,7 +61,10 @@ df$teatro_pc[is.na(df$teatro_pc)] <- 0
 df$museus_pc[is.na(df$museus_pc)] <- 0
 df$ec_pc[is.na(df$ec_pc)] <- 0
 df$equipamentos_pc[is.infinite(df$equipamentos_pc)] <- 0
+
+df$equip_groups <- factor(ifelse(df$equipamentos_pc > mean(df$equipamentos_pc), 1, 0))
 ```
+
 
 No caso da clusterização é aconselhável usar antes duas outras técnicas: a primeira é reescalar os dados e a segunda é aplicar uma Principal Componente Analysis (PCA, ou Análise de Componentes Principais).
 
@@ -83,6 +86,7 @@ Na prática, cada valor se tornará a distância do valor original até a média
 
 No R podemos facilmente reescalar os dados para o Z-Score com a função `scale()`.
 
+
 ```{r, fig.width=8, fig.height=6}
 df %>% 
   data.frame %>% 
@@ -94,8 +98,6 @@ df %>%
   facet_wrap(~name, scales = "free")
 ```
 
-
-
 ```{r, fig.width=8, fig.height=6}
 X <- df %>% 
   data.frame() %>% 
@@ -105,6 +107,7 @@ X <- df %>%
   data.frame()
 
 rownames(X) <- df$nm_dstr
+
 X %>% 
   pivot_longer(cols=everything()) %>% 
   ggplot(aes(x = value, color = name)) + 
@@ -117,7 +120,11 @@ map_df(df %>% data.frame %>% select(names(X)), ~c(min(.), max(.)), na.rm=TRUE)
 map_df(X, ~c(min(.), max(.)), na.rm=TRUE)
 ```
 
-### Análise de componentes principais
+## Análise de componentes principais
+
+```{r}
+dim(X)
+```
 
 ```{r}
 X.pca <- prcomp(X)
@@ -144,23 +151,40 @@ ggbiplot(X.pca) +
 ggbiplot(X.pca, ellipse=TRUE, labels=rownames(X), groups = df$equip_groups) +
   theme_minimal()
 ```
+
 ## Reorganizar a refazer análise de PCA
 
 ```{r}
 cols <- c("brancos", "negros_indios", "amarels", "pessoas_dom", "rnd_dm_",
           "bibs_pc", "teatro_pc", "ec_pc", "museus_pc")
-X <- X %>%
-  mutate(negros_indios = pretos + pardos + indigns) %>% 
-  select(all_of(cols))
+df <- df %>%
+  mutate(negros_indios = pretos + pardos + indigns)
+
+X <- df %>% 
+  data.frame %>% 
+  select(all_of(cols)) %>% 
+  scale() %>% 
+  data.frame()
 ```
 
 ```{r, fig.width=8, fig.height=7}
 X.pca <- prcomp(X)
+
 ggbiplot(X.pca, ellipse=TRUE, labels=rownames(X), groups = df$equip_groups) +
   theme_minimal()
 ```
 ```{r}
 fviz_eig(X.pca, addlabels = TRUE, ylim = c(0, 60))
+```
+
+```{r}
+summary(X.pca)
+```
+
+
+```{r}
+X.proj <- predict(X.pca, X) %>% data.frame
+X.proj
 ```
 
 
@@ -169,7 +193,7 @@ fviz_eig(X.pca, addlabels = TRUE, ylim = c(0, 60))
 ### Visualizar distâncias
 
 ```{r, fig.height=12, fig.width=8}
-X.dist <- get_dist(X, stand = TRUE, method = "pearson")
+X.dist <- get_dist(X.proj, method = "pearson")
 
 fviz_dist(X.dist, 
    gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
@@ -178,25 +202,37 @@ fviz_dist(X.dist,
 ### Determinar o número ótimo de clusters
 
 ```{r}
-fviz_nbclust(X, kmeans, method = "gap_stat")
+fviz_nbclust(X.proj, kmeans, method = "gap_stat")
 ```
 
 ### Clusterizar com Kmeans
 
 ```{r}
 set.seed(123)
-X.km <- kmeans(X, 6, nstart = 25)
+X.km <- kmeans(X, 4)
+X.km
 ```
+
+```{r}
+barplot(X.km$size)
+X.km$size
+```
+
 
 ### Visualizar clusters
 
 ```{r}
-library("factoextra")
+library(factoextra)
 fviz_cluster(X.km, data = X,
              ellipse.type = "convex",
              palette = "jco",
              ggtheme = theme_minimal())
 ```
+
+```{r}
+df$nm_dstr
+```
+
 
 ```{r, fig.width=8, fig.height=5}
 df$cluster <- factor(X.km$cluster)
@@ -204,7 +240,7 @@ df %>%
   data.frame %>% 
   group_by(cluster) %>% 
   mutate(cluster = as.numeric(as.character(cluster))) %>% 
-  summarise_at(vars(contains("pc")), mean) %>% 
+  summarise_at(vars(cols), mean) %>% 
   pivot_longer(cols=c(-cluster)) %>% 
   mutate(cluster = factor(cluster)) %>% 
   ggplot(aes(x=cluster, y=value, fill=cluster)) +
@@ -212,9 +248,6 @@ df %>%
   scale_fill_brewer(palette = "Set2") +
   facet_wrap(~name, scales="free")
 ```
-
-
-
 ```{r, fig.width=8, fig.height=7}
 df %>% 
   ggplot(aes(fill = cluster)) +
